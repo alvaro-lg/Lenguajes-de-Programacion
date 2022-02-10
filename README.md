@@ -5,4 +5,4 @@ Repositorio creado para la realización de las prácticas de la asignatura Lengu
 ## Contacto
 
 Para más información contactar con:
-* **Álvaro López García** - [alvaro-lg](https://github.com/alvaro-lg) ([alvaro.lopezgar@alumnos.unican.es](mailto:alvaro.lopezgar@alumnos.unican.es))
+* **Álvaro López García** - [alvaro-lg](https://github.com/alvaro-lg) ([alvaro.lopezgar@alumnos.unican.es](mailto:alvaro.lopezgar@alumnos.unican.es)).

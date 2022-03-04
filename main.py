@@ -5,11 +5,12 @@ from colorama import init
 from termcolor import colored
 init()
 
-DIRECTORIO = os.path.expanduser("~/Users/alvarolopezgarcia/Desktop/Documentos Universidad/4o Curso/2o Cuatrimestre/Lenguajes de Programación")
+
+DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Downloads\Compilador")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
-#from Parser import *
+# from Parser import *
 from Clases import *
 
 PRACTICA = "01" # Practica que hay que evaluar

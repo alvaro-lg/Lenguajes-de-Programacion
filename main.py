@@ -6,7 +6,7 @@ from termcolor import colored
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Downloads\Compilador")
+DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Desktop\Clase\LP\Lenguajes-de-Programacion-master\Lenguajes-de-Programacion-master")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
@@ -52,8 +52,8 @@ if True:
                     linea = 0
                     while nuestro[linea:linea+NUMLINEAS] == bien[linea:linea+NUMLINEAS]:
                         linea += 1
-                    print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'white', 'on_red'))
-                    print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'blue', 'on_green'))
+                    print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'grey', 'on_red'))
+                    print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'grey', 'on_green'))
                     f = open(os.path.join(DIR, fich)+'.nuestro', 'w')
                     g = open(os.path.join(DIR, fich)+'.bien', 'w')
                     f.write(texto.strip())
@@ -82,8 +82,8 @@ if True:
                         linea = 0
                         while nuestro[linea:linea+NUMLINEAS] == bien[linea:linea+NUMLINEAS]:
                             linea += 1
-                        print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'white', 'on_red'))
-                        print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'blue', 'on_green'))
+                        print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'black', 'on_red'))
+                        print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'black', 'on_green'))
                         f = open(os.path.join(DIR, fich)+'.nuestro', 'w')
                         g = open(os.path.join(DIR, fich)+'.bien', 'w')
                         f.write(resultado.strip())

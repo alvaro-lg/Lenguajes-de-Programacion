@@ -5,6 +5,54 @@ import os
 import re
 import sys
 
+class CommentLexer(Lexer):
+    tokens = {}
+
+    @_(r'\*\)')
+    def cierraComentario(self, t):
+        self.begin(CoolLexer)
+
+    @_(r'.')
+    def ignoreChar(self, t):
+        pass
+
+    @_(r'\n+')
+    def ignore_newline(self, t):
+        self.lineno += t.value.count('\n')
+
+class StringLexer(Lexer):
+
+    tokens = {}
+
+    _string = '"'
+
+    @_(r'"')
+    def cierraString(self, t):
+        t.value = self._string + '"'
+        t.type = 'STR_CONST'
+        self._string = '"'
+        self.begin(CoolLexer)
+        return t
+
+    @_(r'\\\n')
+    def ignore_newline(self, t):
+        self.lineno += 1
+
+    @_(r'\\\w')
+    def escaped_char(self, t):
+        self._string += t.value
+        
+    @_(r'\\"')
+    def inline_quotes(self, t):
+        self._string += t.value
+
+    @_(r'\n')
+    def error(self, t):
+        return t
+
+    @_(r'.')
+    def ignoreChar(self, t):
+        self._string += t.value
 
 class CoolLexer(Lexer):
     tokens = {OBJECTID, INT_CONST, BOOL_CONST, TYPEID,
@@ -12,32 +60,45 @@ class CoolLexer(Lexer):
               INHERITS, ISVOID, LET, LOOP, NEW, OF,
               POOL, THEN, WHILE, NUMBER, STR_CONST, LE, DARROW, ASSIGN}
     ignore = '\t '
+
     literals = {'=', '+', '-', '*', '/', '(', ')', '"', '\\', '$', '{', '<', '>', ':', '~', ';', '}', '.', ',', '@'}
 
-    ELSE = r'[eE][lL][sS][eE]\b'
+    ELSE = r'\b[eE][lL][sS][eE]\b'
     IF = r'[iI][fF]\b'
     FI = r'[fF][iI]\b'
     THEN = r'[tT][hH][eE][nN]\b'
     NOT = r'[nN][oO][tT]\b'
     IN = r'[iI][nN]\b'
     CASE = r'[cC][aA][sS][eE]\b'
-    ESAC = r'\[eE][sS][aA][cC]\b'
+    ESAC = r'[eE][sS][aA][cC]\b'
     CLASS = r'[cC][lL][aA][sS][sS]\b'
-    INHERITS = r'[iI][nN][hH][eE][rR][iI][tT][sS]\b'
-    ISVOID = r'[iI][sS][vV][oO][iI][dD]\b'
-    LET = r'[lL][eE][tT]\b'
-    LOOP = r'[lL][oO][oO][pP]\b'
-    NEW = r'[nN][eE][wW]\b'
-    OF = r'[oO][fF]\b'
-    POOL = r'[pP][oO][oO][lL]\b'
-    WHILE = r'[wW][hH][iI][lL][eE]\b'
-    # NUMBER = r'\d+'
+    INHERITS = r'[iI][nN][hH][eE][rR][iI][tT][sS]'
+    ISVOID = r'[iI][sS][vV][oO][iI][dD]'
+    LET = r'[lL][eE][tT]'
+    LOOP = r'[lL][oO][oO][pP]'
+    NEW = r'[nN][eE][wW]'
+    OF = r'[oO][fF]'
+    POOL = r'[pP][oO][oO][lL]'
+    WHILE = r'[wW][hH][iI][lL][eE]'
     # TODO STRING_CONST y StringLexer
     LE = r'\<='
     DARROW = r'\=>'
     ASSIGN = r'\<-'
 
-    @_(r't[rR][uU][eE]\b|f[aA][lL][sS][eE]\b')
+    @_(r'\(\*')
+    def blockComment(self, t):
+        self.begin(CommentLexer)
+
+    @_(r'"')
+    def string(self, t):
+        self.begin(StringLexer)
+
+    @_(r'--.*\n')
+    def lineComment(self, t):
+        self.lineno += 1
+        pass
+
+    @_(r't[rR][uU][eE]\b|f[aA][lL][sS][eE]')
     def BOOL_CONST(self, t):
         t.value = t.value.lower() == 'true'
         return t
@@ -57,48 +118,21 @@ class CoolLexer(Lexer):
         return t
 
     @_(r'\n+')
-    def lineBr(self, t):
+    def ignore_newline(self, t):
         self.lineno += t.value.count('\n')
 
-    @_(r'_|!|#|\$|\%|\^|\&|\>|\?|`|\[|\]|\|')
+    @_(r'\d+')
+    def NUMBER(self, t):
+        t.value = int(t.value)
+        return t
+
+    @_(r'_|\!|\?')
     def ERROR(self, t):
-        t.value = '\"' + t.value + '\"'
         return t
 
-    @_(r'\001|\002|\003|\004')
-    def error_1(self, t):
-        t.type = "ERROR"
-        if t.value == '\001':
-            t.value = "\"\\001\""
-        if t.value == '\002':
-            t.value = "\"\\002\""
-        if t.value == '\003':
-            t.value = "\"\\003\""
-        if t.value == '\004':
-            t.value = "\"\\004\""
-        return t
-
-    @_(r'\x00')
-    def error_null_code(self, t):
-        t.type = "ERROR"
-        t.value = "\"" + "\\000" + "\""
-        return t
-
-    @_(r'\\')
-    def error_barra(self, t):
-        t.type = "ERROR"
-        t.value = "\"" + "\\\\" + "\""
-        return t
-
-    @_(r'(\*\))')
-    def error_fin_comment(self, t):
-        t.type = "ERROR"
-        t.value = "\"Unmatched " + t.value + "\""
-        return t
-
-    CARACTERES_CONTROL = [bytes.fromhex(i + hex(j)[-1]).decode('ascii')
-                          for i in ['0', '1']
-                          for j in range(16)] + [bytes.fromhex(hex(127)[-2:]).decode("ascii")]
+    def error(self, t):
+        print('Line %d: Bad character %r' % (self.lineno, t.value[0]))
+        self.index += 1
 
     def salida(self, texto):
         list_strings = []
@@ -111,7 +145,7 @@ class CoolLexer(Lexer):
             elif token.type == 'TYPEID':
                 result += f"{str(token.value)}"
             elif token.type in self.literals:
-                result = f'#{token.lineno} \'{token.type}\' '
+                result = f'#{token.lineno} \'{token.type}\''
             elif token.type == 'STR_CONST':
                 result += token.value
             elif token.type == 'INT_CONST':

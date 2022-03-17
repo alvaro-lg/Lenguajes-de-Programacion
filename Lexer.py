@@ -7,10 +7,28 @@ import sys
 
 class CommentLexer(Lexer):
     tokens = {}
+    _level = 0
+
+    @_(r'\*\)\Z')
+    def no_fin(self, t):
+        if self._level == 0:
+            self.begin(CoolLexer)
+        else:
+            t.type = "ERROR"
+            self.begin(CoolLexer)
+            t.value = '"EOF in comment"'
+            return t
+
+    @_(r'\(\*')
+    def in_comment(self, t):
+        self._level += 1
 
     @_(r'\*\)')
     def cierraComentario(self, t):
-        self.begin(CoolLexer)
+        if self._level == 0:
+            self.begin(CoolLexer)
+        else:
+            self._level -= 1
 
     @_(r'.')
     def ignoreChar(self, t):
@@ -20,39 +38,100 @@ class CommentLexer(Lexer):
     def ignore_newline(self, t):
         self.lineno += t.value.count('\n')
 
+
 class StringLexer(Lexer):
 
     tokens = {}
-
     _string = '"'
+    _str_error = False
 
     @_(r'"')
     def cierraString(self, t):
         t.value = self._string + '"'
         t.type = 'STR_CONST'
         self._string = '"'
+
+        if self._str_error:
+            self._str_error = False
+            self.begin(CoolLexer)
+            return
         self.begin(CoolLexer)
         return t
+
+    @_(r'.\Z|.\\\n\Z|\\\"\Z')
+    def eof_error(self, t):
+        self._str_error = True
+        t.type = "ERROR"
+        t.lineno += t.value.count('\n')
+        self._string = '"'
+        self.begin(CoolLexer)
+        t.value = '"EOF in string constant"'
+        return t
+
+    @_(r'\\[fbtn"\\]')
+    def scpecialChar(self, t):
+        self._string += t.value
+
+
+    @_(r'\\\x00')
+    def escaped_null(self, t):
+        self._str_error = True
+        t.type = "ERROR"
+        t.value = '"String contains escaped null character."'
+        return t
+
+    @_(r'\x00')
+    def error_null(self, t):
+        self._str_error = True
+        t.type = "ERROR"
+        t.value = '"String contains null character."'
+        return t
+
+
+    @_(r'[^\\\n]\n|(\\\\)*\n')
+    def unterminated_string(self, t):
+        if self._str_error:
+            self.begin(CoolLexer)
+            t.lineno += t.value.count('\n')
+            self.lineno = t.lineno
+            return
+        t.lineno += t.value.count('\n')
+        self.lineno = t.lineno
+        self._string = '"'
+        t.type = "ERROR"
+        self.begin(CoolLexer)
+        t.value = '"Unterminated string constant"'
+        return t
+
+    @_(r'\\\n')
+    def backslash(self, t):
+        self._string += '\\n'
+        self.lineno += t.value.count('\n')
 
     @_(r'\\\n')
     def ignore_newline(self, t):
         self.lineno += 1
 
-    @_(r'\\\w')
-    def escaped_char(self, t):
-        self._string += t.value
-        
-    @_(r'\\"')
-    def inline_quotes(self, t):
-        self._string += t.value
+    @_(r'\t|\\\t')
+    def tabulador(self, t):
+        self._string += '\\t'
 
-    @_(r'\n')
-    def error(self, t):
-        return t
+    @_(r'\\\010')
+    def backspace(self, t):
+        self._string += '\\b'
+
+    @_(r'\f|\\\f')
+    def form_feed(self, t):
+        self._string += "\\f"
+
+    @_(r'\\[a-zA-Z0-9]')
+    def escaped_char(self, t):
+        self._string += t.value[1:]
 
     @_(r'.')
-    def ignoreChar(self, t):
+    def addChar(self, t):
         self._string += t.value
+
 
 class CoolLexer(Lexer):
     tokens = {OBJECTID, INT_CONST, BOOL_CONST, TYPEID,
@@ -75,9 +154,9 @@ class CoolLexer(Lexer):
     INHERITS = r'[iI][nN][hH][eE][rR][iI][tT][sS]'
     ISVOID = r'[iI][sS][vV][oO][iI][dD]'
     LET = r'[lL][eE][tT]'
-    LOOP = r'[lL][oO][oO][pP]'
-    NEW = r'[nN][eE][wW]'
-    OF = r'[oO][fF]'
+    LOOP = r'[lL][oO][oO][pP]\b'
+    NEW = r'[nN][eE][wW]\b'
+    OF = r'[oO][fF]\b'
     POOL = r'[pP][oO][oO][lL]'
     WHILE = r'[wW][hH][iI][lL][eE]'
     # TODO STRING_CONST y StringLexer
@@ -126,8 +205,15 @@ class CoolLexer(Lexer):
         t.value = int(t.value)
         return t
 
+    @_(r'(\*\))')
+    def error_unmatched_end_comment(self, t):
+        t.type = "ERROR"
+        t.value = '"Unmatched ' + t.value + '"'
+        return t
+
     @_(r'_|\!|\?')
     def ERROR(self, t):
+        t.value = '"' + t.value + '"'
         return t
 
     def error(self, t):

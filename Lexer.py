@@ -38,7 +38,6 @@ class CommentLexer(Lexer):
     def ignore_newline(self, t):
         self.lineno += t.value.count('\n')
 
-
 class StringLexer(Lexer):
 
     tokens = {}
@@ -49,10 +48,10 @@ class StringLexer(Lexer):
     def cierraString(self, t):
         t.value = self._string + '"'
         t.type = 'STR_CONST'
+        self._str_error = False
         self._string = '"'
-
+        #print(t.value, self._str_error,'ERROR')
         if self._str_error:
-            self._str_error = False
             self.begin(CoolLexer)
             return
         self.begin(CoolLexer)
@@ -68,14 +67,10 @@ class StringLexer(Lexer):
         t.value = '"EOF in string constant"'
         return t
 
-    @_(r'\\[fbtn"\\]')
-    def scpecialChar(self, t):
-        self._string += t.value
-
-
     @_(r'\\\x00')
     def escaped_null(self, t):
         self._str_error = True
+        self._string = '"'
         t.type = "ERROR"
         t.value = '"String contains escaped null character."'
         return t
@@ -84,14 +79,15 @@ class StringLexer(Lexer):
     def error_null(self, t):
         self._str_error = True
         t.type = "ERROR"
+        self._string = '"'
         t.value = '"String contains null character."'
         return t
-
 
     @_(r'[^\\\n]\n|(\\\\)*\n')
     def unterminated_string(self, t):
         if self._str_error:
             self.begin(CoolLexer)
+            self._string = '"'
             t.lineno += t.value.count('\n')
             self.lineno = t.lineno
             return
@@ -103,14 +99,18 @@ class StringLexer(Lexer):
         t.value = '"Unterminated string constant"'
         return t
 
-    @_(r'\\\n')
-    def backslash(self, t):
-        self._string += '\\n'
-        self.lineno += t.value.count('\n')
+    @_(r'\\r')
+    def carriage_return(self, t):
+        self._string += '\\015'
+
+    @_(r'\\[fbtn"\\]')
+    def scpecialChar(self, t):
+        self._string += t.value
 
     @_(r'\\\n')
     def ignore_newline(self, t):
-        self.lineno += 1
+        self._string += '\\n'
+        self.lineno += t.value.count('\n')
 
     @_(r'\t|\\\t')
     def tabulador(self, t):
@@ -131,7 +131,6 @@ class StringLexer(Lexer):
     @_(r'.')
     def addChar(self, t):
         self._string += t.value
-
 
 class CoolLexer(Lexer):
     tokens = {OBJECTID, INT_CONST, BOOL_CONST, TYPEID,
@@ -177,6 +176,12 @@ class CoolLexer(Lexer):
         self.lineno += 1
         pass
 
+    @_(r'\*\)')
+    def unmatched_block_comment(self, t):
+        t.type = "ERROR"
+        t.value = '"Unmatched *)"'
+        return t
+
     @_(r't[rR][uU][eE]\b|f[aA][lL][sS][eE]')
     def BOOL_CONST(self, t):
         t.value = t.value.lower() == 'true'
@@ -205,14 +210,9 @@ class CoolLexer(Lexer):
         t.value = int(t.value)
         return t
 
-    @_(r'(\*\))')
-    def error_unmatched_end_comment(self, t):
-        t.type = "ERROR"
-        t.value = '"Unmatched ' + t.value + '"'
-        return t
-
     @_(r'_|\!|\?')
     def ERROR(self, t):
+        t.type = 'ERROR'
         t.value = '"' + t.value + '"'
         return t
 

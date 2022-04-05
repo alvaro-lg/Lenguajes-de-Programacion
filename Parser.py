@@ -13,4 +13,11 @@ class CoolParser(Parser):
     debugfile = "salida.out"
     errores = []
 
-    pass
+    @_("programa clase ';'")
+    def programa(self, p):
+        pass
+
+    @_("clase ';'")
+    def programa(self, p):
+        pass
+

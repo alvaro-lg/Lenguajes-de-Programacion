@@ -51,7 +51,7 @@ class CommentLexer(Lexer):
     def ignoreChar(self, t):
         pass
 
-    @_(r'\n+')
+    @_(r'\n|\r')
     def ignore_newline(self, t):
         self.lineno += t.value.count('\n')
 
@@ -85,10 +85,9 @@ class StringLexer(Lexer):
         self.begin(CoolLexer)
         return t
 
-
     @_(r'.\Z|.\\\n\Z|\\\"\Z')
     def eof_error(self, t):
-        self._str_error = True
+        self._str_error = False
         t.type = "ERROR"
         t.lineno += t.value.count('\n')
         self._string = '"'
@@ -97,10 +96,6 @@ class StringLexer(Lexer):
         t.value = '"EOF in string constant"'
         return t
 
-    @_(r'\\[fbtn"\\]')
-    def scpecialChar(self, t):
-        self._string += t.value
-        self._str_len += 1
 
     @_(r'\\\x00')
     def escaped_null(self, t):
@@ -118,10 +113,29 @@ class StringLexer(Lexer):
         t.value = '"String contains null character."'
         return t
 
+    @_(r'\x0d')
+    def carriage_return_0(self, t):
+        print('carriage return')
+        self._string += r'\015'
+        self._str_len += 1
+
+    @_(r'\x1b')
+    def carriage_return(self, t):
+        print(t)
+        self._string += r'\033'
+        self._str_len += 1
+        print(self._string)
+
+    @_(r'\\[fbtn"\\]')
+    def scpecialChar(self, t):
+        self._string += t.value
+        self._str_len += 1
+
     @_(r'[^\\\n]\n|(\\\\)*\n')
     def unterminated_string(self, t):
         self._str_len = 0
         if self._str_error:
+            self._str_error = False
             self.begin(CoolLexer)
             t.lineno += t.value.count('\n')
             self.lineno = t.lineno
@@ -272,7 +286,7 @@ class CoolLexer(Lexer):
         return t
 
 
-    @_(r'\n+')
+    @_(r'\n|\r')
     def ignore_newline(self, t):
         self.lineno += t.value.count('\n')
 

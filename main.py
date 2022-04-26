@@ -6,14 +6,14 @@ from termcolor import colored
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Desktop\Clase\LP\Lenguajes-de-Programacion-master\Lenguajes-de-Programacion-master")
+DIRECTORIO = os.path.expanduser(r"C:\Users\jairo\Downloads\Lenguajes-de-Programacion-master")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
-# from Parser import *
+from Parser import *
 from Clases import *
 
-PRACTICA = "01" # Practica que hay que evaluar
+PRACTICA = "02" # Practica que hay que evaluar
 DEBUG = True   # Decir si se lanzan mensajes de debug
 NUMLINEAS = 3   # Numero de lineas que se muestran antes y después de la no coincidencia
 sys.path.append(DIRECTORIO)

@@ -138,7 +138,7 @@ class CoolParser(Parser):
 
     @_('expr "<" expr')
     def expr(self, p):
-        pass
+        return Menor(p.lineno, p.expr0, p.expr1)
 
     @_('"~" expr')
     def expr(self, p):
@@ -146,15 +146,15 @@ class CoolParser(Parser):
 
     @_('expr "/" expr')
     def expr(self, p):
-        pass
+        return Division(p.lineno, p.expr0, p.expr1)
 
     @_('expr "*" expr')
     def expr(self, p):
-        pass
+        return Multiplicacion(p.lineno, p.expr0, p.expr1)
 
     @_('expr "-" expr')
     def expr(self, p):
-        pass
+        return Resta(p.lineno, p.expr0, p.expr1)
 
     @_('expr "+" expr')
     def expr(self, p):
@@ -168,10 +168,6 @@ class CoolParser(Parser):
     def expr(self, p):
         return Nueva(p.lineno, p.TYPEID)
 
-    # case _no_type??
-    # @_('CASE expr OF lista_asig ESAC')
-    # def expr(self, p):
-    #   pass
 
     @_('OBJECTID ":" TYPEID DARROW expr ";"')
     def lista_asig(self, p):
@@ -257,13 +253,12 @@ class CoolParser(Parser):
 
     @_('"," expr')
     def optional_expressions(self, p):
-        pass
+        return [p.expr]
 
     @_('"," expr optional_expressions')
     def optional_expressions(self, p):
-        pass
+        return [p.expr] + p.optional_expressions
 
-    # expr[@TYPE].ID([expr[,expr]*])
     @_('expr "@" TYPEID "." OBJECTID "(" ")"')
     def expr(self, p):
         pass
@@ -278,17 +273,23 @@ class CoolParser(Parser):
 
     @_('expr "." OBJECTID "(" ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodo(linea=p.lineno, cuerpo=p.expr, nombre_metodo=p.OBJECTID, argumentos=[])
 
     @_('expr "." OBJECTID "(" expr ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodo(p.lineno, p.expr0, p.OBJECTID, [p.expr1])
 
     @_('expr "." OBJECTID "(" expr optional_expressions ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodo(p.lineno, p.expr0, p.OBJECTID, [p.expr1] + p.optional_expressions)
 
     # ID <- expr
     @_('OBJECTID ASSIGN expr')
     def expr(self, p):
-        pass
+        return Asignacion(p.lineno, p.OBJECTID, p.expr)
+
+    #Errores
+
+    def error(self, p):
+        self.errores.append(f'"{self.nombre_fichero}", line {p.lineno}: '
+                            f'syntax error at or near {p.type} = {p.value}')

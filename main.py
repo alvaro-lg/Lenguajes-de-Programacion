@@ -6,7 +6,7 @@ from termcolor import colored
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"C:\Users\jairo\Downloads\Lenguajes-de-Programacion-master")
+DIRECTORIO = os.path.expanduser(r"D:\Clase\LP\Lenguajes-de-Programacion")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *

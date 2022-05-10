@@ -114,7 +114,7 @@ class CoolParser(Parser):
 
     @_('INT_CONST')
     def expr(self, p):
-        return Entero(p.lineno, (int)(p.INT_CONST))
+        return Entero(p.lineno, int(p.INT_CONST))
 
     @_('OBJECTID')
     def expr(self, p):
@@ -126,15 +126,15 @@ class CoolParser(Parser):
 
     @_('NOT expr')
     def expr(self, p):
-        pass
+        return Not(p.lineno, p.expr)
 
     @_('expr "=" expr')
     def expr(self, p):
-        pass
+        return Igual(p.lineno, p.expr0, p.expr1)
 
     @_('expr LE expr')
     def expr(self, p):
-        pass
+        return LeIgual(p.lineno, p.expr0, p.expr1)
 
     @_('expr "<" expr')
     def expr(self, p):
@@ -142,7 +142,7 @@ class CoolParser(Parser):
 
     @_('"~" expr')
     def expr(self, p):
-        pass
+        return Neg(p.lineno, p.expr)
 
     @_('expr "/" expr')
     def expr(self, p):
@@ -168,14 +168,17 @@ class CoolParser(Parser):
     def expr(self, p):
         return Nueva(p.lineno, p.TYPEID)
 
+    @_('CASE expr OF lista_asig ESAC')
+    def expr(self, p):
+        return [RamaCase(p.lineno, p.expr, p.lista_asig)]
 
     @_('OBJECTID ":" TYPEID DARROW expr ";"')
     def lista_asig(self, p):
-        pass
+        return [RamaCase(p.lineno, p.OBJECTID, p.TYPEID, p.expr)]
 
     @_('OBJECTID ":" TYPEID DARROW expr ";" lista_asig')
     def lista_asig(self, p):
-        pass
+        return [RamaCase(p.lineno, p.OBJECTID, p.TYPEID, p.expr)] + p.lista_asig
 
     # let
     @_('LET OBJECTID ":" TYPEID ASSIGN expr IN expr')
@@ -232,24 +235,24 @@ class CoolParser(Parser):
     # while
     @_('WHILE expr LOOP expr POOL')
     def expr(self, p):
-        pass
+        return Bucle(p.lineno, p.expr0, p.expr1)
     # if
     @_('IF expr THEN expr ELSE expr FI')
     def expr(self, p):
-        pass
+        return Condicional(p.lineno, p.expr0, p.expr1, p.expr2)
 
     # ID([expr[,expr]*])
     @_('OBJECTID "(" expr ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodo(p.lineno, Objeto(p.lineno, "self"), p.OBJECTID, [p.expr])
 
     @_('OBJECTID "(" expr optional_expressions ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodo(p.lineno, Objeto(p.lineno, "self"), p.OBJECTID, [p.expr] + p.optional_expressions)
 
     @_('OBJECTID "(" ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodo(p.lineno, Objeto(p.lineno, "self"), p.OBJECTID, [])
 
     @_('"," expr')
     def optional_expressions(self, p):
@@ -261,15 +264,15 @@ class CoolParser(Parser):
 
     @_('expr "@" TYPEID "." OBJECTID "(" ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodoEstatico(p.lineno, p.expr, p.TYPEID, p.OBJECTID, [])
 
     @_('expr "@" TYPEID "." OBJECTID "(" expr ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodoEstatico(p.lineno, p.expr0, p.TYPEID, p.OBJECTID, [p.expr1])
 
     @_('expr "@" TYPEID "." OBJECTID "(" expr optional_expressions ")"')
     def expr(self, p):
-        pass
+        return LlamadaMetodoEstatico(p.lineno, p.expr0, p.TYPEID, p.OBJECTID, [p.expr1] + p.optional_expressions)
 
     @_('expr "." OBJECTID "(" ")"')
     def expr(self, p):
@@ -290,6 +293,42 @@ class CoolParser(Parser):
 
     #Errores
 
+    @_('CLASS TYPEID "{" error "}"')
+    def clase(self, p):
+        return []
+
+    @_('IF expr THEN error FI')
+    def expr(self, p):
+        return []
+
+    @_('IF expr THEN expr ELSE expr error')
+    def expr(self, p):
+        return []
+
+    @_('OBJECTID "(" ")" ":" TYPEID "{" error "}"')
+    def feature(self, p):
+        return []
+
+    @_('OBJECTID "(" optional_formal ")" ":" TYPEID "{" error "}" ')
+    def feature(self, p):
+        return []
+
+    @_('error ";"')
+    def optional_feature(self, p):
+        return []
+
+    @_('error ";"')
+    def lista_expr(self, p):
+        return []
+
     def error(self, p):
-        self.errores.append(f'"{self.nombre_fichero}", line {p.lineno}: '
-                            f'syntax error at or near {p.type} = {p.value}')
+        # print(p)
+        if p is None:
+            self.errores.append(f'"{self.nombre_fichero}", line 0: syntax error at or near EOF')
+        elif p.type in ['TYPEID', 'OBJECTID', 'INT_CONST']:
+            self.errores.append(
+                f'"{self.nombre_fichero}", line {p.lineno}: syntax error at or near {p.type} = {p.value}')
+        elif p.type in ['OF', 'DARROW', 'ESAC', 'FI', 'ELSE', 'LOOP', 'POOL']:
+            self.errores.append(f'"{self.nombre_fichero}", line {p.lineno}: syntax error at or near {p.type}')
+        else:
+            self.errores.append(f'"{self.nombre_fichero}", line {p.lineno}: syntax error at or near \'{p.value}\'')

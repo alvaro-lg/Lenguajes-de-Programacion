@@ -3,10 +3,11 @@ import re
 import sys
 from colorama import init
 from termcolor import colored
+import traceback
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"D:\Clase\LP\Lenguajes-de-Programacion")
+DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Desktop\Clase\LP\Lenguajes-de-Programacion")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *

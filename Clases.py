@@ -22,7 +22,7 @@ class Formal(Nodo):
         resultado += f'{(n+2)*" "}{self.tipo}\n'
         return resultado
 
-
+@dataclass
 class Expresion(Nodo):
     cast: str = '_no_type'
 

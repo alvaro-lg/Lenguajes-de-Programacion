@@ -7,7 +7,7 @@ import traceback
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Desktop\Clase\LP\Lenguajes-de-Programacion")
+DIRECTORIO = os.path.expanduser("D:\Clase\LP\Lenguajes-de-Programacion")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
@@ -24,7 +24,7 @@ TESTS = [fich for fich in FICHEROS
          if os.path.isfile(os.path.join(DIR, fich)) and
          re.search(r"^[a-zA-Z].*\.(cool|test|cl)$",fich)]
 TESTS.sort()
-TESTS = TESTS
+TESTS = ['badfeatures.test']
 
 if True:
     for fich in TESTS:

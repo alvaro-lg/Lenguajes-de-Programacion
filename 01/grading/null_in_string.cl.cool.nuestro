@@ -1,0 +1,3 @@
+#name "null_in_string.cl.cool"
+ ERROR "String contains null character."
+ STR_CONST "null character is here -><-"

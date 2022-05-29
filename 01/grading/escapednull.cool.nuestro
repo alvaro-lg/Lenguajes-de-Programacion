@@ -1,0 +1,3 @@
+#name "escapednull.cool"
+ ERROR "String contains escaped null character."
+ STR_CONST "This contains an escaped null character "

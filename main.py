@@ -7,7 +7,7 @@ import traceback
 init()
 
 
-DIRECTORIO = os.path.expanduser("D:\Clase\LP\Lenguajes-de-Programacion")
+DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Desktop\Clase\LP\Lenguajes-de-Programacion")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
@@ -24,7 +24,7 @@ TESTS = [fich for fich in FICHEROS
          if os.path.isfile(os.path.join(DIR, fich)) and
          re.search(r"^[a-zA-Z].*\.(cool|test|cl)$",fich)]
 TESTS.sort()
-TESTS = ['badfeatures.test']
+TESTS = TESTS
 
 if True:
     for fich in TESTS:
@@ -34,7 +34,7 @@ if True:
         if os.path.isfile(os.path.join(DIR, fich)+'.nuestro'):
             os.remove(os.path.join(DIR, fich)+'.nuestro')
         if os.path.isfile(os.path.join(DIR, fich)+'.bien'):
-            os.remove(os.path.join(DIR, fich)+'.bien')            
+            os.remove(os.path.join(DIR, fich)+'.bien')
         texto = ''
         entrada = f.read()
         f.close()
@@ -53,8 +53,8 @@ if True:
                     linea = 0
                     while nuestro[linea:linea+NUMLINEAS] == bien[linea:linea+NUMLINEAS]:
                         linea += 1
-                    print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'grey', 'on_red'))
-                    print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'grey', 'on_green'))
+                    print(colored(''.join(nuestro[linea:linea+NUMLINEAS]), 'grey', 'on_red'))
+                    print(colored(''.join(bien[linea:linea+NUMLINEAS]), 'grey', 'on_green'))
                     f = open(os.path.join(DIR, fich)+'.nuestro', 'w')
                     g = open(os.path.join(DIR, fich)+'.bien', 'w')
                     f.write(texto.strip())
@@ -92,5 +92,6 @@ if True:
                         f.close()
                         g.close()
             except Exception as e:
+                traceback.print_exc()
                 print(f"Lanza excepción en {fich} con el texto {e}")
 

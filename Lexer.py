@@ -65,7 +65,6 @@ class StringLexer(Lexer):
 
     @_(r'"')
     def cierra_string(self, t):
-
         if self._str_len > 1024:
             t.type = 'ERROR'
             t.value = '"String constant too long"'
@@ -81,7 +80,7 @@ class StringLexer(Lexer):
         if self._str_error:
             self._str_error = False
             self.begin(CoolLexer)
-            return
+            return t
         self.begin(CoolLexer)
         return t
 
@@ -115,13 +114,11 @@ class StringLexer(Lexer):
 
     @_(r'\x0d')
     def carriage_return_0(self, t):
-        print('carriage return')
         self._string += r'\015'
         self._str_len += 1
 
     @_(r'\x1b')
     def carriage_return(self, t):
-        print(t)
         self._string += r'\033'
         self._str_len += 1
         print(self._string)
@@ -130,6 +127,18 @@ class StringLexer(Lexer):
     def scpecialChar(self, t):
         self._string += t.value
         self._str_len += 1
+
+    @_(r'\\\n')
+    def ignore_newline(self, t):
+        self._str_len += 1
+        self.lineno += 1
+
+    @_(r'\\\n')
+    def backslash(self, t):
+        self._str_len += 1
+        self._string += '\\n'
+        self.lineno += t.value.count('\n')
+
 
     @_(r'[^\\\n]\n|(\\\\)*\n')
     def unterminated_string(self, t):
@@ -141,6 +150,7 @@ class StringLexer(Lexer):
             self.lineno = t.lineno
             self._string = '"'
             return
+
         t.lineno += t.value.count('\n')
         self.lineno = t.lineno
         self._string = '"'
@@ -148,17 +158,6 @@ class StringLexer(Lexer):
         self.begin(CoolLexer)
         t.value = '"Unterminated string constant"'
         return t
-
-    @_(r'\\\n')
-    def backslash(self, t):
-        self._str_len += 1
-        self._string += '\\n'
-        self.lineno += t.value.count('\n')
-
-    @_(r'\\\n')
-    def ignore_newline(self, t):
-        self._str_len += 1
-        self.lineno += 1
 
     @_(r'\\\w')
     def escaped_char(self, t):

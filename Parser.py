@@ -102,7 +102,6 @@ class CoolParser(Parser):
     def formal(self, p):
         return Formal(linea=p.lineno, nombre_variable=p.OBJECTID, tipo=p.TYPEID)
 
-
     # Expr
 
     @_('"-" expr %prec UMINUS')
@@ -111,15 +110,15 @@ class CoolParser(Parser):
 
     @_('BOOL_CONST')
     def expr(self, p):
-        return Booleano(p.lineno, p.BOOL_CONST)
+        return Booleano(linea=p.lineno, valor=p.BOOL_CONST)
 
     @_('STR_CONST')
     def expr(self, p):
-        return String(p.lineno, p.STR_CONST)
+        return String(linea=p.lineno, valor=p.STR_CONST)
 
     @_('INT_CONST')
     def expr(self, p):
-        return Entero(p.lineno, p.INT_CONST)
+        return Entero(linea=p.lineno, valor=p.INT_CONST)
 
     @_('OBJECTID')
     def expr(self, p):
@@ -211,6 +210,7 @@ class CoolParser(Parser):
         cuerpo = Let(linea=p.lineno, nombre=p.OBJECTID, tipo=p.TYPEID, inicializacion=NoExpr(p.lineno), cuerpo=cuerpo)
         return cuerpo
 
+
     @_('"," OBJECTID ":" TYPEID ASSIGN expr optional_assigns')
     def optional_assigns(self, p):
         return [[p.OBJECTID, p.TYPEID, p.expr]] + p.optional_assigns
@@ -235,6 +235,7 @@ class CoolParser(Parser):
     def lista_expr(self, p):
         return [p.expr]
 
+
     @_('lista_expr expr ";"')
     def lista_expr(self, p):
         return p.lista_expr + [p.expr]
@@ -246,7 +247,7 @@ class CoolParser(Parser):
     # if
     @_('IF expr THEN expr ELSE expr FI')
     def expr(self, p):
-        return Condicional(p.lineno, p.expr0, p.expr1, p.expr2)
+        return Condicional(linea=p.lineno, condicion=p.expr0, verdadero=p.expr1, falso=p.expr2)
 
     # ID([expr[,expr]*])
     @_('OBJECTID "(" expr ")"')
@@ -328,8 +329,11 @@ class CoolParser(Parser):
     def lista_expr(self, p):
         return []
 
+    @_('LET OBJECTID ":" TYPEID ASSIGN expr IN error')
+    def expr(self, p):
+        return NoExpr()
+
     def error(self, p):
-        print(p)
         if p is None:
             self.errores.append(f'"{self.nombre_fichero}", line 0: syntax error at or near EOF')
 

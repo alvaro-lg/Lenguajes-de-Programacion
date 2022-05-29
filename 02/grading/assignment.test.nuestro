@@ -1,0 +1,21 @@
+_program
+  _class
+    Test
+    Object
+    "assignment.test"
+    (
+    _attr
+      foo
+      Int
+      _no_expr
+      : _no_type
+    _method
+      bar
+      Object
+      _assign
+        _no_set
+        _int
+          3
+        : _no_type
+      : foo
+    )

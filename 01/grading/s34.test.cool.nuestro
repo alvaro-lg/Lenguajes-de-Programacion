@@ -1,2 +1,6 @@
 #name "s34.test.cool"
- ERROR "EOF in comment"
+ OBJECTID before_it
+ ERROR "Unterminated string constant"
+ OBJECTID doens
+ OBJECTID t
+ OBJECTID end

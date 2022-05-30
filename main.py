@@ -7,7 +7,7 @@ import traceback
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Desktop\Clase\LP\Lenguajes-de-Programacion")
+DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Downloads\Lenguajes-de-Programacion-master")
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
@@ -78,17 +78,17 @@ if True:
                 if resultado.lower().strip().split() != bien.lower().strip().split():
                     print(f"Revisa el fichero {fich}")
                     if DEBUG:
-                        #nuestro = [linea for linea in resultado.split('\n') if linea]
-                        #bien = [linea for linea in bien.split('\n') if linea]
+                        nuestro = [linea for linea in resultado.split('\n') if linea]
+                        bien = [linea for linea in bien.split('\n') if linea]
                         linea = 0
-                        #while nuestro[linea:linea+NUMLINEAS] == bien[linea:linea+NUMLINEAS]:
-                        #   linea += 1
-                        #print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'black', 'on_red'))
-                        #print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'black', 'on_green'))
+                        while nuestro[linea:linea+NUMLINEAS] == bien[linea:linea+NUMLINEAS]:
+                           linea += 1
+                        print(colored('\n'.join(nuestro[linea:linea+NUMLINEAS]), 'grey', 'on_red'))
+                        print(colored('\n'.join(bien[linea:linea+NUMLINEAS]), 'grey', 'on_green'))
                         f = open(os.path.join(DIR, fich)+'.nuestro', 'w')
                         g = open(os.path.join(DIR, fich)+'.bien', 'w')
-                        f.write(resultado.strip())
-                        g.write(bien.strip())
+                        f.write(''.join(resultado).strip())
+                        g.write('\n'.join(bien).strip())
                         f.close()
                         g.close()
             except Exception as e:

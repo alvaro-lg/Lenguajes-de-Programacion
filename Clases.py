@@ -3,6 +3,25 @@ from dataclasses import dataclass, field
 from typing import List
 
 
+class Ambito:
+
+    def __init__(self):
+        self.variables = {'self': 'SELF_TYPE'}
+        self.features = {('Object', 'abort'): ([], "Object"),
+                        ('Object', 'copy'): ([], "Object"),
+                        ('Int', 'copy'): ([], "Int"),
+                        ('String', 'copy'): ([], "String"),
+                        ('Bool', 'copy'): ([], "Bool"),
+                        ('String', 'length'): ([], "Int"),
+                        ('String', 'substr'): (['Int', 'Int'], "String"),
+                        ('String', 'concat'): (['String'], "String")}
+        self.classes = {}
+        self.error = ''
+
+
+ambito = Ambito()
+
+
 @dataclass
 class Nodo:
     linea: int = 0
@@ -40,6 +59,17 @@ class Asignacion(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        result = self.cuerpo.Tipo()
+        if self.nombre in ambito.variables:
+            if ambito.variables[self.nombre] != self.cuerpo.cast:
+                self.cast = 'Object'
+                result += f':{str(self.linea)}: Type {self.cuerpo.cast} of assigned expression does not conform to ' \
+                          f'declared type {ambito.variables[self.nombre]} of identifier {self.nombre}.\n'
+            else:
+                self.cast = self.cuerpo.cast
+        return result
+
 
 @dataclass
 class LlamadaMetodoEstatico(Expresion):
@@ -60,6 +90,10 @@ class LlamadaMetodoEstatico(Expresion):
         resultado += f'{(n)*" "}: _no_type\n'
         return resultado
 
+    def Tipo(self):
+        self.cast = ambito.features[(self.clase, self.nombre_metodo)][1]
+        return ''
+
 
 @dataclass
 class LlamadaMetodo(Expresion):
@@ -78,6 +112,18 @@ class LlamadaMetodo(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = self.cuerpo.Tipo()
+        args, return_type = ambito.features[(self.cuerpo.cast, self.nombre_metodo)]
+        pos = 0
+        for a in self.argumentos:
+            resultado += a.Tipo()
+            if a.cast != args[pos]:
+                return resultado + "error"
+            pos += 1
+        self.cast = return_type
+        return resultado
+
 
 @dataclass
 class Condicional(Expresion):
@@ -94,6 +140,10 @@ class Condicional(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = self.condicion.Tipo()
+        self.cast = self.verdadero.cast
+        return resultado
 
 @dataclass
 class Bucle(Expresion):
@@ -108,6 +158,10 @@ class Bucle(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = self.cuerpo.Tipo()
+        self.cast = self.cuerpo.cast
+        return resultado
 
 @dataclass
 class Let(Expresion):
@@ -126,6 +180,10 @@ class Let(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = self.cuerpo.Tipo()
+        self.cast = self.cuerpo.cast
+        return resultado
 
 @dataclass
 class Bloque(Expresion):
@@ -139,6 +197,14 @@ class Bloque(Expresion):
         resultado += '\n'
         return resultado
 
+    def Tipo(self):
+        tmp_cast = ''
+        resultado = ''
+        for expr in self.expresiones:
+            resultado += expr.Tipo()
+            tmp_cast = expr.cast
+        self.cast = tmp_cast
+        return resultado
 
 @dataclass
 class RamaCase(Nodo):
@@ -157,6 +223,9 @@ class RamaCase(Nodo):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = self.cuerpo.Tipo()
+        return resultado
 
 @dataclass
 class Swicht(Nodo):
@@ -172,6 +241,12 @@ class Swicht(Nodo):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = ''
+        for c in self.casos:
+            resultado += c.Tipo()
+        return resultado
+
 @dataclass
 class Nueva(Nodo):
     tipo: str = '_no_set'
@@ -184,7 +259,9 @@ class Nueva(Nodo):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
-
+    def Tipo(self):
+        self.cast = self.tipo
+        return ''
 
 @dataclass
 class OperacionBinaria(Expresion):
@@ -204,6 +281,15 @@ class Suma(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+
+        resultado = self.izquierda.Tipo()
+        resultado += self.derecha.Tipo()
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            self.cast = 'Int'
+            return resultado
+        else:
+            return resultado + f': {str(self.linea)}: non-Int arguments: {self.izquierda.cast} {self.derecha.cast}\n'
 
 @dataclass
 class Resta(OperacionBinaria):
@@ -217,6 +303,14 @@ class Resta(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        resultado = self.izquierda.Tipo()
+        resultado += self.derecha.Tipo()
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            self.cast = 'Int'
+            return resultado
+        else:
+            return resultado + 'Error - resta'
 
 @dataclass
 class Multiplicacion(OperacionBinaria):
@@ -230,7 +324,14 @@ class Multiplicacion(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
-
+    def Tipo(self):
+        resultado = self.izquierda.Tipo()
+        resultado += self.derecha.Tipo()
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            self.cast = 'Int'
+            return resultado
+        else:
+            return resultado + 'Error - mult'
 
 @dataclass
 class Division(OperacionBinaria):
@@ -244,6 +345,11 @@ class Division(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        else:
+            return "error"
 
 @dataclass
 class Menor(OperacionBinaria):
@@ -257,6 +363,12 @@ class Menor(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        else:
+            return "error"    
+
 @dataclass
 class LeIgual(OperacionBinaria):
     operando: str = '<='
@@ -269,6 +381,11 @@ class LeIgual(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        else:
+            return "error"
 
 @dataclass
 class Igual(OperacionBinaria):
@@ -282,6 +399,11 @@ class Igual(OperacionBinaria):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        else:
+            return "error"
 
 
 @dataclass
@@ -296,7 +418,11 @@ class Neg(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
-
+    def Tipo(self):
+        if self.expr.cast == 'Int':
+            return ""
+        else:
+            return "error"
 
 @dataclass
 class Not(Expresion):
@@ -310,6 +436,8 @@ class Not(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        return ""
 
 @dataclass
 class EsNulo(Expresion):
@@ -322,6 +450,10 @@ class EsNulo(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        self.expr.Tipo()
+        self.cast = self.expr.cast
+        return ""
 
 
 
@@ -336,7 +468,14 @@ class Objeto(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
-
+    def Tipo(self):
+        if self.nombre not in ambito.variables:
+            self.cast = "Object"
+            return "Undeclared identifier"
+        else:
+            self.cast = ambito.variables[self.nombre]
+            return ""
+    
 @dataclass
 class NoExpr(Expresion):
     nombre: str = ''
@@ -347,6 +486,9 @@ class NoExpr(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        self.cast = "_no_type"
+        return ""
 
 @dataclass
 class Entero(Expresion):
@@ -359,6 +501,9 @@ class Entero(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        self.cast = 'Int'
+        return ""
 
 @dataclass
 class String(Expresion):
@@ -371,6 +516,9 @@ class String(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        self.cast = 'String'
+        return ""
 
 
 @dataclass
@@ -384,6 +532,10 @@ class Booleano(Expresion):
         resultado += f'{(n)*" "}: {self.cast}\n'
         return resultado
 
+    def Tipo(self):
+        self.cast = "Bool"
+        return ""
+
 @dataclass
 class IterableNodo(Nodo):
     secuencia: List = field(default_factory=List)
@@ -395,6 +547,19 @@ class Programa(IterableNodo):
         resultado += f'{" "*n}_program\n'
         resultado += ''.join([c.str(n+2) for c in self.secuencia])
         return resultado
+
+    def Tipo(self):
+        print('Programa')
+        s = ""
+        for c in self.secuencia:
+            if c.nombre == 'SELF_TYPE':
+                return c.nombre_fichero + f': {str(self.linea)} :  Redefinition of basic class SELF_TYPE.\n {ambito.error}'
+            ambito.classes[c.nombre] = ""
+            s += c.Tipo()
+            #del scope['class'][c.nombre]
+        if s != "":
+            s += ambito.error
+        return ""+s
 
 @dataclass
 class Caracteristica(Nodo):
@@ -422,6 +587,24 @@ class Clase(Nodo):
         resultado += f'{(n+2)*" "})\n'
         return resultado
 
+    def Tipo(self):
+        s = ""
+        for c in self.caracteristicas:
+            if isinstance(c, Atributo):
+                if c.nombre == 'self':
+                    s += f":' {str(c.linea)} : 'self' cannot be the name of an attribute.\n" 
+                ambito.variables[c.nombre] = c.tipo
+            if isinstance(c, Metodo):
+                types = []
+                for f in c.formales:
+                    types.append(f.tipo)
+                ambito.features[(self.nombre, c.nombre)] = (types, c.tipo)
+            s += c.Tipo()
+            
+        if s != "":
+            s = self.nombre_fichero + s
+        return ""+s
+
 @dataclass
 class Metodo(Caracteristica):
     formales: List[Formal] = field(default_factory=list)
@@ -436,6 +619,9 @@ class Metodo(Caracteristica):
 
         return resultado
 
+    def Tipo(self):
+        resultado = self.cuerpo.Tipo()
+        return resultado
 
 class Atributo(Caracteristica):
 
@@ -446,3 +632,10 @@ class Atributo(Caracteristica):
         resultado += f'{(n+2)*" "}{self.tipo}\n'
         resultado += self.cuerpo.str(n+2)
         return resultado
+
+    def Tipo(self):
+        resultado = self.cuerpo.Tipo()
+        if self.cuerpo.cast == self.tipo:
+            return resultado
+        else:
+            return resultado 

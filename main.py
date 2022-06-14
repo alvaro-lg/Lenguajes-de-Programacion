@@ -7,14 +7,14 @@ import traceback
 init()
 
 
-DIRECTORIO = os.path.expanduser(r"C:\Users\Jairo\Downloads\Lenguajes-de-Programacion-master")
+DIRECTORIO = os.path.expanduser(r'D:\Clase\LP\Lenguajes-de-Programacion-master')
 sys.path.append(DIRECTORIO)
 
 from Lexer import *
 from Parser import *
 from Clases import *
 
-PRACTICA = "02" # Practica que hay que evaluar
+PRACTICA = "03" # Practica que hay que evaluar
 DEBUG = True   # Decir si se lanzan mensajes de debug
 NUMLINEAS = 3   # Numero de lineas que se muestran antes y después de la no coincidencia
 sys.path.append(DIRECTORIO)
@@ -68,13 +68,20 @@ if True:
             bien = ''.join([c for c in g.readlines() if c and '#' not in c])
             g.close()
             j = parser.parse(lexer.tokenize(entrada))
+
             try:
                 if j and not parser.errores:
-                    resultado = '\n'.join([c for c in j.str(0).split('\n')
-                                           if c and '#' not in c])
+                    errores = j.Tipo()
+                    if not errores:
+                        resultado = '\n'.join([c for c in j.str(0).split('\n')
+                                               if c and '#' not in c])
+                    else:
+                        resultado = errores
                 else:
                     resultado = '\n'.join(parser.errores)
                     resultado += '\n' + "Compilation halted due to lex and parse errors"
+
+
                 if resultado.lower().strip().split() != bien.lower().strip().split():
                     print(f"Revisa el fichero {fich}")
                     if DEBUG:

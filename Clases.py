@@ -345,7 +345,7 @@ class Suma(OperacionBinaria):
             self.cast = 'Int'
             return resultado
         else:
-            return resultado + f': {str(self.linea)}: non-Int arguments: {self.izquierda.cast} {self.derecha.cast}\n'
+            return resultado + f':{str(self.linea)}: non-Int arguments: {self.izquierda.cast} + {self.derecha.cast}\n'
 
 
 @dataclass

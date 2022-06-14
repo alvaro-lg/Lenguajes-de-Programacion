@@ -408,7 +408,7 @@ class Division(OperacionBinaria):
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
             return ""
         else:
-            return "error"
+            return f":{self.linea}: Illegal comparison with a basic type.\n"
 
 
 @dataclass
@@ -429,7 +429,7 @@ class Menor(OperacionBinaria):
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
             return ""
         else:
-            return "error"
+            return f":{self.linea}: Illegal comparison with a basic type.\n"
 
 
 @dataclass
@@ -448,7 +448,7 @@ class LeIgual(OperacionBinaria):
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
             return ""
         else:
-            return "error"
+            return f":{self.linea}: Illegal comparison with a basic type.\n"
 
 
 @dataclass
@@ -467,7 +467,7 @@ class Igual(OperacionBinaria):
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
             return ""
         else:
-            return "error"
+            return f":{self.linea}: Illegal comparison with a basic type.\n"
 
 
 @dataclass

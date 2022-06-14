@@ -15,6 +15,7 @@ class Ambito:
         self.local_variables = dict()
         self.atributes = dict()
         self.clases = set()
+        self.basic_clases = {'Object', 'Int', 'String', 'Bool'}
         self.features = {('Object', 'abort'): ([], "Object"),
                          ('Object', 'copy'): ([], "Object"),
                          ('Int', 'copy'): ([], "Int"),
@@ -50,7 +51,7 @@ class Ambito:
         keys = copy(list(self.features.keys()))
         for (clase, method) in keys:
             if clase == parent:
-                self.atributes[(child, method)] = self.atributes[(clase, method)]
+                self.features[(child, method)] = self.features[(clase, method)]
 
     def is_child(self, child, parent):
         try:
@@ -106,11 +107,26 @@ class Asignacion(Expresion):
         if self.nombre == 'self':
             return f"{self.cuerpo.linea}: Cannot assign to 'self'."
 
-        # TODO
-        '''try:
-            ambito.variables[self.nombre]
+        # Comprobacion de que la variable existe como variable local
+        try:
+            tipo = ambito.local_variables[self.nombre]
         except:
-            return f'{self.linea}: Undeclared identifier {self.nombre}.'''
+            tipo = None
+
+        # Comprobacion de que la variable existe como atributo
+        if tipo is None:
+            try:
+                tipo = ambito.atributes[(ambito.current_class.nombre, self.nombre)]
+            except:
+                tipo = None
+
+        # Caso de que los tipos no matcheen
+        if tipo is not None and tipo is not self.cuerpo.tipo:
+            return f":{self.cuerpo.linea}: Type {self.cuerpo.tipo} of assigned expression does not conform to declared" \
+                   f" type {tipo} of identifier {self.nombre}.\n"
+        elif tipo is None: # Caso de que no exista la variable
+            pass
+            # TODO: No existe la variable
 
         resultado += self.cuerpo.Tipo()
         self.cast = self.cuerpo.cast
@@ -162,7 +178,10 @@ class LlamadaMetodo(Expresion):
 
     def Tipo(self):
         resultado = self.cuerpo.Tipo()
-        args, return_type = ambito.features[(self.cuerpo.cast, self.nombre_metodo)]
+        try:
+            args, return_type = ambito.features[(self.cuerpo.cast, self.nombre_metodo)]
+        except:
+            return f":{self.linea}: Dispatch to undefined method {self.nombre_metodo}.\n"
         pos = 0
         for a in self.argumentos:
             resultado += a.Tipo()
@@ -211,6 +230,10 @@ class Bucle(Expresion):
 
     def Tipo(self):
         resultado = self.condicion.Tipo()
+
+        if self.condicion.cast != 'Bool':
+            return f":{self.linea}: Loop condition does not have type Bool.\n"
+
         resultado += self.cuerpo.Tipo()
         self.cast = self.cuerpo.cast
         return resultado
@@ -298,8 +321,13 @@ class Swicht(Nodo):
 
     def Tipo(self):
         resultado = self.expr.Tipo()
+        tipos = set()
         for c in self.casos:
-            resultado += c.Tipo()
+            if c.tipo not in tipos:
+                tipos.add(c.tipo)
+                resultado += c.Tipo()
+            else:
+                return f":{self.linea}: Duplicate branch {c.tipo} in case statement.\n"
         return resultado
 
 
@@ -405,7 +433,11 @@ class Division(OperacionBinaria):
         return resultado
 
     def Tipo(self):
+        self.izquierda.Tipo()
+        self.derecha.Tipo()
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        elif self.izquierda.cast != 'Int' and self.derecha.cast != 'Int':
             return ""
         else:
             return f":{self.linea}: Illegal comparison with a basic type.\n"
@@ -424,9 +456,12 @@ class Menor(OperacionBinaria):
         return resultado
 
     def Tipo(self):
-        self.izquierda.tipo()
-        self.derecha.tipo()
+        self.cast = 'Bool'
+        self.izquierda.Tipo()
+        self.derecha.Tipo()
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        elif self.izquierda.cast != 'Int' and self.derecha.cast != 'Int':
             return ""
         else:
             return f":{self.linea}: Illegal comparison with a basic type.\n"
@@ -445,7 +480,12 @@ class LeIgual(OperacionBinaria):
         return resultado
 
     def Tipo(self):
+        self.cast = 'Bool'
+        self.izquierda.Tipo()
+        self.derecha.Tipo()
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        elif self.izquierda.cast != 'Int' and self.derecha.cast != 'Int':
             return ""
         else:
             return f":{self.linea}: Illegal comparison with a basic type.\n"
@@ -464,11 +504,15 @@ class Igual(OperacionBinaria):
         return resultado
 
     def Tipo(self):
+        self.cast = 'Bool'
+        self.izquierda.Tipo()
+        self.derecha.Tipo()
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
+            return ""
+        elif self.izquierda.cast != 'Int' and self.derecha.cast != 'Int':
             return ""
         else:
             return f":{self.linea}: Illegal comparison with a basic type.\n"
-
 
 @dataclass
 class Neg(Expresion):
@@ -492,7 +536,7 @@ class Neg(Expresion):
 @dataclass
 class Not(Expresion):
     expr: Expresion = None
-    operador: str = 'NOT'
+    operador: str = 'not'
 
     def str(self, n):
         resultado = super().str(n)
@@ -502,6 +546,8 @@ class Not(Expresion):
         return resultado
 
     def Tipo(self):
+        self.cast = 'Bool'
+        self.expr.Tipo()
         return ""
 
 
@@ -534,12 +580,24 @@ class Objeto(Expresion):
         return resultado
 
     def Tipo(self):
-        if self.nombre not in ambito.local_variables.keys() and \
-                (ambito.current_class.nombre, self.nombre) not in ambito.atributes.keys():
+        # Comprobacion de que la variable existe como variable local
+        try:
+            tipo = ambito.local_variables[self.nombre]
+        except:
+            tipo = None
+
+        # Comprobacion de que la variable existe como atributo
+        if tipo is None:
+            try:
+                tipo = ambito.atributes[(ambito.current_class.nombre, self.nombre)]
+            except:
+                tipo = None
+
+        if tipo is None:
             self.cast = "Object"
             return f":{str(self.linea)}: Undeclared identifier {self.nombre}.\n"
         else:
-            self.cast = ambito.local_variables[self.nombre]
+            self.cast = tipo
             return ""
 
 
@@ -602,7 +660,7 @@ class Booleano(Expresion):
         return resultado
 
     def Tipo(self):
-        self.cast = "Bool"
+        self.cast = 'Bool'
         return ""
 
 
@@ -629,7 +687,6 @@ class Programa(IterableNodo):
                 return c.nombre_fichero + f': {str(self.linea)} :  Redefinition of basic class SELF_TYPE.\n {ambito.error}'
             ambito.new_class(c)
             resultado += c.Tipo()
-            # del scope['class'][c.nombre]
         if resultado != "":
             resultado += ambito.error
         return "" + resultado
@@ -663,33 +720,26 @@ class Clase(Nodo):
 
     def Tipo(self):
         s = ""
+
+        # Errores
         if self.padre != '_no_set':
             ambito.new_child(self.nombre, self.padre)
         else:
             ambito.new_child(self.nombre, 'Object')
 
+        if self.padre != 'Object' and self.padre in ambito.basic_clases.union({'SELF_TYPE'}):
+            return f"{self.nombre_fichero}:{self.linea+1}: Class {self.nombre} cannot inherit class {self.padre}.\n"
+
+        if self.nombre in ambito.basic_clases:
+            return f"{self.nombre_fichero}:{self.linea+1}: Redefinition of basic class {self.nombre}.\n"
+
         for c in self.caracteristicas:
-            s += c.Tipo()
             ambito.new_method()
-            if isinstance(c, Atributo):
-                if c.nombre == 'self':
-                    s += f":{str(c.linea)}: 'self' cannot be the name of an attribute.\n"
-                try:
-                    if ambito.atributes[(self.padre, c.nombre)] is not c.tipo:
-                        return f"{self.nombre_fichero}:{c.linea}: Attribute {c.nombre} is an attribute of an inherited class.\n"
-                except:
-                    pass
-                print(s)
-                ambito.atributes[(self.nombre, c.nombre)] = c.tipo
-            if isinstance(c, Metodo):
-                types = []
-                for f in c.formales:
-                    types.append(f.tipo)
-                ambito.features[(self.nombre, c.nombre)] = (types, c.tipo)
+            s += c.Tipo()
 
         if s != "":
             s = self.nombre_fichero + s
-        return "" + s
+        return s
 
 
 @dataclass
@@ -708,6 +758,11 @@ class Metodo(Caracteristica):
 
     def Tipo(self):
         resultado = ''
+        types = []
+        for f in self.formales:
+            types.append(f.tipo)
+            ambito.local_variables[f.nombre_variable] = f.tipo
+        ambito.features[(self.nombre, self.nombre)] = (types, self.tipo)
         resultado += self.cuerpo.Tipo()
         return resultado
 
@@ -723,8 +778,13 @@ class Atributo(Caracteristica):
         return resultado
 
     def Tipo(self):
-        resultado = self.cuerpo.Tipo()
-        if self.cuerpo.cast == self.tipo:
-            return resultado
-        else:
-            return resultado
+        s = self.cuerpo.Tipo()
+        if self.nombre == 'self':
+            s += f":{str(self.linea)}: 'self' cannot be the name of an attribute.\n"
+        try:
+            if ambito.atributes[(ambito.inheritance[ambito.current_class.nombre], self.nombre)] is not self.tipo:
+                return f":{self.linea}: Attribute {self.nombre} is an attribute of an inherited class.\n"
+        except:
+            pass
+        ambito.atributes[(ambito.current_class.nombre, self.nombre)] = self.tipo
+        return s

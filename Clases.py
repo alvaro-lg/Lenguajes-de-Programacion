@@ -776,7 +776,6 @@ class Programa(IterableNodo):
                     except:
                         pass
 
-
         if 'Main' not in ambito.clases:
             return "Class Main is not defined.\n" + ambito.error
 

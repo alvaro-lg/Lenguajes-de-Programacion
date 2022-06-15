@@ -303,6 +303,8 @@ class Let(Expresion):
 
     def Tipo(self):
 
+        global ambito
+
         if self.nombre == 'self':
             return f":{self.linea}: '{self.nombre}' cannot be bound in a 'let' expression.\n"
 

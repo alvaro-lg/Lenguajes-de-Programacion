@@ -14,9 +14,9 @@ class Ambito:
         self.local_variables = dict()
         self.atributes = dict()
         self.clases = {'OBJECT', 'Int', 'String', 'Bool', 'IO'}
-        self.basic_clases = {'OBJECT', 'Int', 'String', 'Bool'}
-        self.features = {('OBJECT', 'abort'): ([], "OBJECT"),
-                         ('OBJECT', 'copy'): ([], "OBJECT"),
+        self.basic_clases = {'Object', 'Int', 'String', 'Bool'}
+        self.features = {('Object', 'abort'): ([], "Object"),
+                         ('Object', 'copy'): ([], "Object"),
                          ('Int', 'copy'): ([], "Int"),
                          ('String', 'copy'): ([], "String"),
                          ('Bool', 'copy'): ([], "Bool"),

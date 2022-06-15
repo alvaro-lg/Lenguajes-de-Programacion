@@ -15,5 +15,5 @@ z:Z;
 
 f():Z { if true then a else b fi};
 g():Object { if true then a else b fi};
-h():B {if true then c else a fi}; 
-}; 
+h():B {if true then c else a fi};
+};

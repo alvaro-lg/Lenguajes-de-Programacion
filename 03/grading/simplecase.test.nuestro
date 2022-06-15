@@ -1,0 +1,4 @@
+simplecase.test:5: Undeclared identifier i.
+:6: Undeclared identifier b.
+:7: Undeclared identifier s.
+Compilation halted due to static semantic errors.

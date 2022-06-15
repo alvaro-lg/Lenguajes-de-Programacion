@@ -108,7 +108,7 @@ class Asignacion(Expresion):
         resultado = ''
 
         if self.nombre == 'self':
-            return f"{self.cuerpo.linea}: Cannot assign to 'self'."
+            return f":{self.cuerpo.linea}: Cannot assign to 'self'.\n"
 
         # Comprobacion de que la variable existe como variable local
         try:
@@ -739,6 +739,8 @@ class Programa(IterableNodo):
         global ambito
         ambito = Ambito()
         resultado = ""
+
+        # Explorando todos los metodos
         for c in self.secuencia:
             if c.nombre in ambito.clases and c.nombre not in ambito.basic_clases:
                 return f"{c.nombre_fichero}:{c.linea}: Class {c.nombre} was previously defined.\n" + ambito.error
@@ -748,6 +750,10 @@ class Programa(IterableNodo):
                 if isinstance(car, Metodo):
                     args = []
                     for f in car.formales:
+                        if f.nombre_variable == 'self':
+                            return f"{c.nombre_fichero}:{car.linea}: '{f.nombre_variable}' cannot be the name of a formal parameter.\n" + ambito.error
+                        if f.tipo == 'SELF_TYPE':
+                            return f"{c.nombre_fichero}:{car.linea}: Formal parameter {f.nombre_variable} cannot have type {f.tipo}.\n" + ambito.error
                         args.append(f.tipo)
                     ambito.features[(c.nombre, car.nombre)] = (args, car.tipo)
 
@@ -774,7 +780,7 @@ class Programa(IterableNodo):
 
         for c in self.secuencia:
             if c.nombre == 'SELF_TYPE':
-                return c.nombre_fichero + f': {str(self.linea)} :  Redefinition of basic class SELF_TYPE.\n {ambito.error}'
+                return c.nombre_fichero + f':{str(self.linea)}: Redefinition of basic class SELF_TYPE.\n {ambito.error}'
             ambito.new_class(c)
             resultado += c.Tipo()
         if resultado != "":

@@ -5,7 +5,6 @@ from typing import List
 # coding: utf-8
 from dataclasses import dataclass, field
 from typing import List
-
 from copy import copy
 
 
@@ -14,7 +13,7 @@ class Ambito:
     def __init__(self):
         self.local_variables = dict()
         self.atributes = dict()
-        self.clases = set()
+        self.clases = {'Object', 'Int', 'String', 'Bool', 'IO'}
         self.basic_clases = {'Object', 'Int', 'String', 'Bool'}
         self.features = {('Object', 'abort'): ([], "Object"),
                          ('Object', 'copy'): ([], "Object"),
@@ -23,7 +22,11 @@ class Ambito:
                          ('Bool', 'copy'): ([], "Bool"),
                          ('String', 'length'): ([], "Int"),
                          ('String', 'substr'): (['Int', 'Int'], "String"),
-                         ('String', 'concat'): (['String'], "String")}
+                         ('String', 'concat'): (['String'], "String"),
+                         ('IO', 'out_string'): (["String"], 'SELF_TYPE'),
+                         ('IO', 'out_int'): (["Int"], 'SELF_TYPE'),
+                         ('IO', 'in_string'): ([], "String"),
+                         ('IO', 'in_int'): ([], "Int")}
         self.inheritance = {'Object': None,
                             'Int': 'Object',
                             'String': 'Object',
@@ -120,15 +123,16 @@ class Asignacion(Expresion):
             except:
                 tipo = None
 
+        resultado += self.cuerpo.Tipo()
+
         # Caso de que los tipos no matcheen
-        if tipo is not None and tipo is not self.cuerpo.tipo:
-            return f":{self.cuerpo.linea}: Type {self.cuerpo.tipo} of assigned expression does not conform to declared" \
+        if tipo is not None and tipo != self.cuerpo.cast and tipo != ambito.inheritance[self.cuerpo.cast]:
+            return f":{self.cuerpo.linea}: Type {self.cuerpo.cast} of assigned expression does not conform to declared" \
                    f" type {tipo} of identifier {self.nombre}.\n"
         elif tipo is None: # Caso de que no exista la variable
             pass
             # TODO: No existe la variable
 
-        resultado += self.cuerpo.Tipo()
         self.cast = self.cuerpo.cast
         return resultado
 
@@ -153,9 +157,15 @@ class LlamadaMetodoEstatico(Expresion):
 
     def Tipo(self):
         resultado = self.cuerpo.Tipo()
-        for arg in self.argumentos:
-            resultado += arg.Tipo()
-        self.cast = ambito.features[(self.clase, self.nombre_metodo)][1]
+        try:
+            args, return_type = ambito.features[(self.clase, self.nombre_metodo)]
+        except:
+            return f":{self.linea}: Dispatch to undefined method {self.nombre_metodo}.\n"
+        for pos, a in enumerate(self.argumentos):
+            resultado += a.Tipo()
+            if a.cast != args[pos]:
+                return f":{self.linea}: Expression type {self.nombre_metodo}, type Object of parameter a does not conform to declared static dispatch type {args[pos]}.\n"
+        self.cast = return_type
         return resultado
 
 
@@ -178,17 +188,32 @@ class LlamadaMetodo(Expresion):
 
     def Tipo(self):
         resultado = self.cuerpo.Tipo()
-        try:
-            args, return_type = ambito.features[(self.cuerpo.cast, self.nombre_metodo)]
-        except:
-            return f":{self.linea}: Dispatch to undefined method {self.nombre_metodo}.\n"
-        pos = 0
-        for a in self.argumentos:
-            resultado += a.Tipo()
-            if a.cast != args[pos]:
-                return resultado + "error"
-            pos += 1
-        self.cast = return_type
+        if self.cuerpo.cast == '_no_type':
+            try:
+                args, return_type = ambito.features[(ambito.current_class.nombre, self.nombre_metodo)]
+                for pos, a in enumerate(self.argumentos):
+                    resultado += a.Tipo()
+                    if a.cast != args[pos]:
+                        return f":{self.linea}: In call of method {self.nombre_metodo}, type Object of parameter a does not conform to declared type {args[pos]}.\n"
+                self.cast = return_type
+            except:
+                return f":{self.linea}: Dispatch to undefined method {self.nombre_metodo}.\n"
+        else:
+            try:
+                tipo = self.cuerpo.cast
+                if tipo == 'SELF_TYPE':
+                    tipo = ambito.current_class.nombre
+                args, return_type = ambito.features[(tipo, self.nombre_metodo)]
+                for pos, a in enumerate(self.argumentos):
+                    resultado += a.Tipo()
+                    tipo = a.cast
+                    if a.cast == 'SELF_TYPE':
+                        tipo = ambito.current_class.nombre
+                    if tipo != args[pos]:
+                        return f":{self.linea}: In call of method {self.nombre_metodo}, type Object of parameter a does not conform to declared type {args[pos]}.\n"
+                self.cast = return_type
+            except:
+                return f":{self.linea}: Dispatch to undefined method {self.nombre_metodo}.\n"
         return resultado
 
 
@@ -211,9 +236,29 @@ class Condicional(Expresion):
         resultado = self.verdadero.Tipo()
         resultado += self.falso.Tipo()
         resultado += self.condicion.Tipo()
-        self.cast = self.verdadero.cast
-        return resultado
 
+        node_falso = self.falso.cast
+        path_falso = []
+        node_verdadero = self.verdadero.cast
+        path_verdadero = []
+
+        while node_falso is not None :
+            path_falso.insert(0, node_falso)
+            node_falso = ambito.inheritance[node_falso]
+
+        while node_verdadero is not None:
+            path_verdadero.insert(0, node_verdadero)
+            node_verdadero = ambito.inheritance[node_verdadero]
+
+        common_parent = 'Object'
+        for i, j in zip(path_verdadero, path_falso):
+            if i == j:
+                common_parent = i
+            else:
+                break
+
+        self.cast = common_parent
+        return resultado
 
 @dataclass
 class Bucle(Expresion):
@@ -257,9 +302,23 @@ class Let(Expresion):
         return resultado
 
     def Tipo(self):
+
+        if self.nombre == 'self':
+            return f":{self.linea}: '{self.nombre}' cannot be bound in a 'let' expression.\n"
+
+        backup = copy(ambito)
+
+        # Creamos la entrada de la variable
+        ambito.local_variables[self.nombre] = self.tipo
         resultado = self.inicializacion.Tipo()
+
+        if self.inicializacion.cast != self.tipo and not isinstance(self.inicializacion, NoExpr):
+            return f":{self.linea}: Inferred type {self.inicializacion.cast} of initialization of" \
+                   f" {self.nombre} does not conform to identifier's declared type {self.tipo}.\n"
+
         resultado += self.cuerpo.Tipo()
         self.cast = self.cuerpo.cast
+        ambito = backup
         return resultado
 
 
@@ -433,14 +492,13 @@ class Division(OperacionBinaria):
         return resultado
 
     def Tipo(self):
-        self.izquierda.Tipo()
-        self.derecha.Tipo()
+        resultado = self.izquierda.Tipo()
+        resultado += self.derecha.Tipo()
         if self.izquierda.cast == 'Int' and self.derecha.cast == 'Int':
-            return ""
-        elif self.izquierda.cast != 'Int' and self.derecha.cast != 'Int':
-            return ""
+            self.cast = 'Int'
+            return resultado
         else:
-            return f":{self.linea}: Illegal comparison with a basic type.\n"
+            return resultado + 'Error - mult'
 
 
 @dataclass
@@ -527,10 +585,9 @@ class Neg(Expresion):
         return resultado
 
     def Tipo(self):
-        if self.expr.cast == 'Int':
-            return ""
-        else:
-            return "error"
+        resultado = self.expr.Tipo()
+        self.cast = self.expr.cast
+        return resultado
 
 
 @dataclass
@@ -683,6 +740,39 @@ class Programa(IterableNodo):
         ambito = Ambito()
         resultado = ""
         for c in self.secuencia:
+            if c.nombre in ambito.clases and c.nombre not in ambito.basic_clases:
+                return f"{c.nombre_fichero}:{c.linea}: Class {c.nombre} was previously defined.\n" + ambito.error
+            ambito.new_class(c)
+            ambito.new_child(c.nombre, c.padre)
+            for car in c.caracteristicas:
+                if isinstance(car, Metodo):
+                    args = []
+                    for f in car.formales:
+                        args.append(f.tipo)
+                    ambito.features[(c.nombre, car.nombre)] = (args, car.tipo)
+
+        # Check overriding
+        for c in self.secuencia:
+            parent = ambito.inheritance[c.nombre]
+            for car in c.caracteristicas:
+                if isinstance(car, Metodo):
+                    try:
+                        original = ambito.features[(parent, car.nombre)]
+                        overrided = ambito.features[(c.nombre, car.nombre)]
+                        if original != overrided:
+                            for i, j in zip(original, overrided):
+                                if i != j:
+                                    break
+                            return f"{c.nombre_fichero}:{car.linea}: In redefined method {car.nombre}, parameter " \
+                                   f"type {j[0]} is different from original type {i[0]}\n" + ambito.error
+                    except:
+                        pass
+
+
+        if 'Main' not in ambito.clases:
+            return "Class Main is not defined.\n" + ambito.error
+
+        for c in self.secuencia:
             if c.nombre == 'SELF_TYPE':
                 return c.nombre_fichero + f': {str(self.linea)} :  Redefinition of basic class SELF_TYPE.\n {ambito.error}'
             ambito.new_class(c)
@@ -722,13 +812,16 @@ class Clase(Nodo):
         s = ""
 
         # Errores
+        # TODO: Comprobar orden
+        if self.padre != 'Object' and self.padre in ambito.basic_clases.union({'SELF_TYPE'}):
+            return f"{self.nombre_fichero}:{self.linea+1}: Class {self.nombre} cannot inherit class {self.padre}.\n"
+
         if self.padre != '_no_set':
+            if self.padre not in ambito.clases:
+                return f"{self.nombre_fichero}:{self.linea+1}: Class {self.nombre} inherits from an undefined class {self.padre}.\n"
             ambito.new_child(self.nombre, self.padre)
         else:
             ambito.new_child(self.nombre, 'Object')
-
-        if self.padre != 'Object' and self.padre in ambito.basic_clases.union({'SELF_TYPE'}):
-            return f"{self.nombre_fichero}:{self.linea+1}: Class {self.nombre} cannot inherit class {self.padre}.\n"
 
         if self.nombre in ambito.basic_clases:
             return f"{self.nombre_fichero}:{self.linea+1}: Redefinition of basic class {self.nombre}.\n"
@@ -737,8 +830,9 @@ class Clase(Nodo):
             ambito.new_method()
             s += c.Tipo()
 
+        # TODO: +1 da error en inheritsselftype.test y missingclass.test
         if s != "":
-            s = self.nombre_fichero + s
+            s = f"{self.nombre_fichero}"+ s
         return s
 
 
@@ -757,13 +851,14 @@ class Metodo(Caracteristica):
         return resultado
 
     def Tipo(self):
+
         resultado = ''
         types = []
         for f in self.formales:
             types.append(f.tipo)
             ambito.local_variables[f.nombre_variable] = f.tipo
-        ambito.features[(self.nombre, self.nombre)] = (types, self.tipo)
         resultado += self.cuerpo.Tipo()
+
         return resultado
 
 

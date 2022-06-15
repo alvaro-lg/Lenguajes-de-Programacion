@@ -1,7 +1,7 @@
 _program
   _class
     Main
-    Object
+    OBJECT
     "selftypebadreturn.test"
     (
     _method
@@ -13,7 +13,7 @@ _program
     )
   _class
     A
-    Object
+    OBJECT
     "selftypebadreturn.test"
     (
     _method

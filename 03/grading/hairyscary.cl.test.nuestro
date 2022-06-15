@@ -1,0 +1,15 @@
+hairyscary.cl.test:7: Undeclared identifier n.
+:10: Dispatch to undefined method doh.
+:10: non-Int arguments: Int + _no_type
+:10: non-Int arguments: _no_type + Int
+:10: non-Int arguments: _no_type + Int
+:12: Inferred type Object of initialization of i does not conform to identifier's declared type Int.
+hairyscary.cl.test:20: Dispatch to undefined method printh.
+hairyscary.cl.test:28: Undeclared identifier n.
+:31: Dispatch to undefined method doh.
+:31: non-Int arguments: Int + _no_type
+:31: non-Int arguments: _no_type + Int
+:31: non-Int arguments: _no_type + Int
+:31: non-Int arguments: _no_type + Int
+hairyscary.cl.test:43: Undeclared identifier n.
+Compilation halted due to static semantic errors.

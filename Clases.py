@@ -13,10 +13,10 @@ class Ambito:
     def __init__(self):
         self.local_variables = dict()
         self.atributes = dict()
-        self.clases = {'Object', 'Int', 'String', 'Bool', 'IO'}
-        self.basic_clases = {'Object', 'Int', 'String', 'Bool'}
-        self.features = {('Object', 'abort'): ([], "Object"),
-                         ('Object', 'copy'): ([], "Object"),
+        self.clases = {'OBJECT', 'Int', 'String', 'Bool', 'IO'}
+        self.basic_clases = {'OBJECT', 'Int', 'String', 'Bool'}
+        self.features = {('OBJECT', 'abort'): ([], "OBJECT"),
+                         ('OBJECT', 'copy'): ([], "OBJECT"),
                          ('Int', 'copy'): ([], "Int"),
                          ('String', 'copy'): ([], "String"),
                          ('Bool', 'copy'): ([], "Bool"),
@@ -27,13 +27,13 @@ class Ambito:
                          ('IO', 'out_int'): (["Int"], 'SELF_TYPE'),
                          ('IO', 'in_string'): ([], "String"),
                          ('IO', 'in_int'): ([], "Int")}
-        self.inheritance = {'Object': None,
-                            'Int': 'Object',
-                            'String': 'Object',
-                            'Bool': 'Object',
-                            'IO' : 'Object'}
+        self.inheritance = {'OBJECT': None,
+                            'Int': 'OBJECT',
+                            'String': 'OBJECT',
+                            'Bool': 'OBJECT',
+                            'IO' : 'OBJECT'}
         self.error = 'Compilation halted due to static semantic errors.'
-        self.current_class : Clase
+        self.current_class: Clase
 
     def new_class(self, clase):
         self.atributes[(clase.nombre, 'self')] = 'SELF_TYPE'

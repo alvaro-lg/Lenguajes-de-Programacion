@@ -1,7 +1,7 @@
 _program
   _class
     Main
-    Object
+    OBJECT
     "trickyatdispatch2.test"
     (
     _method
@@ -13,7 +13,7 @@ _program
     )
   _class
     A
-    Object
+    OBJECT
     "trickyatdispatch2.test"
     (
     _method
@@ -25,7 +25,7 @@ _program
     )
   _class
     B
-    Object
+    OBJECT
     "trickyatdispatch2.test"
     (
     _method
@@ -37,7 +37,7 @@ _program
     )
   _class
     C
-    Object
+    OBJECT
     "trickyatdispatch2.test"
     (
     _method

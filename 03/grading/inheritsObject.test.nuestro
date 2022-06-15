@@ -1,0 +1,2 @@
+inheritsObject.test:2: Class A inherits from an undefined class Object.
+Compilation halted due to static semantic errors.

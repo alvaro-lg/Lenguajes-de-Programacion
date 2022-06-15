@@ -1,0 +1,2 @@
+scopes.test:8: Type String of assigned expression does not conform to declared type Bool of identifier x.
+Compilation halted due to static semantic errors.

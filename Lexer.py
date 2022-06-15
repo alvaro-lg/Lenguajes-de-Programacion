@@ -1,348 +1,275 @@
 # coding: utf-8
 
-from sly import *
-import os
-import re
-import sys
-
-class CommentLexer(Lexer):
-    tokens = {ERROR}
-    _level = 0
-
-    @_(r'\*\)\Z')
-    def no_fin(self, t):
-        if self._level == 0:
-            self.begin(CoolLexer)
-        else:
-            self._level = 0
-            t.type = 'ERROR'
-            self.begin(CoolLexer)
-            t.value = '"EOF in comment"'
-            return t
+from sly import Lexer
 
 
-    @_(r'\*\)')
-    def cierraComentario(self, t):
-        if self._level == 0:
-            self.begin(CoolLexer)
-        else:
-            self._level -= 1
+class Strings(Lexer):
+    tokens = {ERROR, STR_CONST}
+    _caracteres = '"'
+    _contador = 0
 
-    @_(r'\(\*')
-    def in_comment(self, t):
-        self._level += 1
-
-    @_(r'.\Z')
-    def eof_in_comment(self, t):
-        t.type = 'ERROR'
-        self.begin(CoolLexer)
-        t.value = '"EOF in comment"'
-        return t
-
-    @_(r'\n\Z')
-    def eof_in_comment_2(self, t):
-        t.type = 'ERROR'
-        self.begin(CoolLexer)
-        t.lineno += 1
-        t.value = '"EOF in comment"'
-        return t
-
-    @_(r'.')
-    def ignoreChar(self, t):
-        pass
-
-    @_(r'\n|\r')
-    def ignore_newline(self, t):
-        self.lineno += t.value.count('\n')
-
-class StringLexer(Lexer):
-
-    tokens = {}
-
-    _string = '"'
-    _str_error = False
-    _str_len = 0
-
-    @_(r'"')
-    def cierra_string(self, t):
-        if self._str_len > 1024:
-            t.type = 'ERROR'
-            t.value = '"String constant too long"'
-            self._string = '"'
-            self._str_len = 0
-            self.begin(CoolLexer)
-            return t
-
-        t.value = self._string + '"'
-        t.type = 'STR_CONST'
-        self._string = '"'
-        self._str_len = 0
-        if self._str_error:
-            self._str_error = False
-            self.begin(CoolLexer)
-            return t
-        self.begin(CoolLexer)
-        return t
-
-    @_(r'.\Z|.\\\n\Z|\\\"\Z')
-    def eof_error(self, t):
-        self._str_error = False
-        t.type = "ERROR"
-        t.lineno += t.value.count('\n')
-        self._string = '"'
-        self._str_len = 0
-        self.begin(CoolLexer)
-        t.value = '"EOF in string constant"'
-        return t
-
-
-    @_(r'\\\x00')
-    def escaped_null(self, t):
-        self._str_error = True
-        self._str_len = 0
-        t.type = "ERROR"
-        t.value = '"String contains escaped null character."'
-        return t
-
-    @_(r'\x00')
-    def error_null(self, t):
-        self._str_len = 0
-        self._str_error = True
-        t.type = 'ERROR'
-        t.value = '"String contains null character."'
-        return t
-
-    @_(r'\x0d')
-    def carriage_return_0(self, t):
-        self._string += r'\015'
-        self._str_len += 1
-
-    @_(r'\x1b')
-    def carriage_return(self, t):
-        self._string += r'\033'
-        self._str_len += 1
-        print(self._string)
-
-    @_(r'\\[fbtn"\\]')
-    def scpecialChar(self, t):
-        self._string += t.value
-        self._str_len += 1
-
-    @_(r'\\\n')
-    def ignore_newline(self, t):
-        self._str_len += 1
+    @_(r'\\"$')
+    def ERROR_ESCAPED_QUOTE(self, t):
         self.lineno += 1
-
-    @_(r'\\\n')
-    def backslash(self, t):
-        self._str_len += 1
-        self._string += '\\n'
-        self.lineno += t.value.count('\n')
-
-
-    @_(r'[^\\\n]\n|(\\\\)*\n')
-    def unterminated_string(self, t):
-        self._str_len = 0
-        if self._str_error:
-            self._str_error = False
-            self.begin(CoolLexer)
-            t.lineno += t.value.count('\n')
-            self.lineno = t.lineno
-            self._string = '"'
-            return
-
-        t.lineno += t.value.count('\n')
-        self.lineno = t.lineno
-        self._string = '"'
+        self._caracteres = '"'
         t.type = "ERROR"
+        t.value = '"EOF in string constant"'
+        self._caracteres = '"'
+        self._contador = 0
         self.begin(CoolLexer)
-        t.value = '"Unterminated string constant"'
         return t
+    
+    @_(r'(\\\\)*"')
+    def STR_CONST(self, t):
+        self._contador *= (len(t.value)-1)//2
+        if self._contador < 1024:
+            self._caracteres += t.value
+            t.value = self._caracteres
+        else:
+            t.value = '"String constant too long"'
+            t.type = "ERROR"
+        self._caracteres = '"'
+        self._contador = 0
+        self.begin(CoolLexer)
+        return t
+
+    @_(r'\\[\\"ntbf]')
+    def ADD_SPECIAL(self, t):
+        self._contador += 1
+        self._caracteres += t.value
 
     @_(r'\\\w')
-    def escaped_char(self, t):
-        self._str_len += 1
-        self._string += t.value
+    def ADD_SCAPED(self, t):
+        self._contador += 1        
+        self._caracteres += t.value[-1]
 
-    @_(r'\\"')
-    def inline_quotes(self, t):
-        self._str_len += 1
-        self._string += t.value
+    @_(r'\t')
+    def TAB(self, t):
+        self._contador += 1        
+        self._caracteres += r"\t"
 
-    @_(r'\t|\\\t')
-    def tabulador(self, t):
-        self._str_len += 1
-        self._string += '\\t'
 
-    @_(r'\\-')
-    def guion(self, t):
-        self._string += "-"
-        self._str_len += 1
+    @_(r'\\\n$')
+    def ERROR_ADD_LINE(self, t):
+        self.lineno += 1
+        self._caracteres = '"'
+        t.type = "ERROR"
+        t.value = '"EOF in string constant"'
+        self._caracteres = '"'
+        self._contador = 0
+        self.begin(CoolLexer)
+        return t
+    
 
-    @_(r'\n')
-    def error(self, t):
+        
+
+
+    @_(r'\\\n')
+    def ADD_LINE(self, t):
+        self._contador += 1
+        self.lineno += 1
+        self._caracteres += r'\n'
+
+    
+    
+    @_(r'([^"]|(\\\n))$')
+    def FIN_FICHERO(self, t):
+        t.type = "ERROR"
+        t.value = '"EOF in string constant"'
+        self._caracteres = '"'
+        self.begin(CoolLexer)
         return t
 
-    @_(r'\013')
-    def error_013(self, t):
-        self._string += '\\013'
-        self._str_len += 1
+    @_(r'.*\x00[^"]*"?')
+    def CARACTER_FIN(self, t):
+        self._caracteres = '"'
+        t.type = "ERROR"
+        if '\\\x00' in t.value: 
+            t.value = '"String contains escaped null character."'
+        else:
+            t.value = '"String contains null character."'
+        self.begin(CoolLexer)
+        return t
 
-    @_(r'\022')
-    def error_022(self, t):
-        self._string += '\\022'
-        self._str_len += 1
+    @_(r'\n')
+    def SALTO_LINEA(self, t):
+        self._caracteres = '"'
+        self.lineno += 1
+        t.type = "ERROR"
+        t.value = '"Unterminated string constant"'
+        self._contador = 0
+        self.begin(CoolLexer)
+        return t
+    @_(r'.')
+    def CAR(self, t):
+        self._contador += 1
+        if t.value in CoolLexer.CARACTERES_CONTROL:
+                self._caracteres += (
+                    '\\'+str(oct(int(t.value.encode("ascii").hex(), 16)).replace('o', '0'))[-3:])
+        else:
+            self._caracteres += t.value
 
-    @_(r'\\\010')
-    def backspace(self, t):
-        self._str_len += 1
-        self._string += '\\b'
+    def error(self, t):
+        print(f'ERROR en linea {t.lineno} por {t.value}\n')
 
-    @_(r'\f|\\\f')
-    def form_feed(self, t):
-        self._str_len += 1
-        self._string += "\\f"
+class Comments(Lexer):
+    tokens = {}
+    profundidad = 1
 
-    @_(r'\\[a-zA-Z0-9]')
-    def escaped_char(self, t):
-        self._str_len += 1
-        self._string += t.value[1:]
+
+    @_(r'\n?\(\*\*\)')
+    def COMMENTOPEN(self, t):
+        pass
+        
+    @_(r'[^\\]\*\)$')
+    def ERROR(self, t):
+        self.profundidad -= 1
+        if not self.profundidad:
+            self.profundidad = 1
+            self.begin(CoolLexer)
+        else:
+            t.type = "ERROR"
+            t.value = '"EOF in comment"'
+            self.begin(CoolLexer)
+            return t
+
+    @_(r'(.|\n)$')
+    def ERROR2(self, t):
+        self.lineno += t.value.count('\n')
+        t.lineno = self.lineno
+        t.type = "ERROR"
+        t.value = '"EOF in comment"'
+        self.begin(CoolLexer)
+        return t
+    
+    @_(r'([^\\]\*\))')
+    def INSIDE(self, t):
+        self.lineno += t.value.count("\n")
+        self.profundidad -= 1
+        if not self.profundidad:
+            self.profundidad = 1
+            self.begin(CoolLexer)
+
+    @_(r'[^\\]\(\*')
+    def OUTSIDE(self, t):
+        self.lineno += t.value.count("\n")
+        self.profundidad += 1
+    @_(r'\n')
+    def newline(self, t):
+        self.lineno += t.value.count('\n')
 
     @_(r'.')
-    def ignoreChar(self, t):
-        self._str_len += 1
-        self._string += t.value
+    def EAT(self, t):
+        pass
 
-    def addChar(self, t):
-        self._str_len += 1
-        self._string += t.value
+    def salida(self, texto):
+        return ['#1 ERROR "EOF in string constant"']
+    
 
 class CoolLexer(Lexer):
     tokens = {OBJECTID, INT_CONST, BOOL_CONST, TYPEID,
-              ELSE, IF, FI, THEN, NOT, IN, CASE, ESAC, CLASS,
-              INHERITS, ISVOID, LET, LOOP, NEW, OF,
-              POOL, THEN, WHILE, NUMBER, STR_CONST, LE, DARROW, ASSIGN}
-    literals = {';', '=', '+', '-', '*', '/', '(', ')', '"', '\\', '$', '{', '<', '>', ':', '~', '}', '.', ',', '@'}
-    ignore = '\t '
+              ELSE, IF, FI, THEN, NOT, IN, CASE, ESAC,
+              CLASS, INHERITS, ISVOID, LET, LOOP,
+              NEW, OF, POOL, THEN, WHILE, STR_CONST,
+              LE, DARROW, ASSIGN}
+    _key_words = {'else', 'if', 'fi', 'then', 'not',
+                  'in', 'case', 'esac', 'class', 'inherits',
+                  'isvoid', 'let', 'loop', 'new', 'of', 'pool',
+                  'then', 'while'}
+    #ignore = '\t '
+    literals = {'=', '+', '-', '*', '/',
+                '(', ')', '<', '>', '.', '~', ',', ';', ':', '@', '{', '}'}
 
+    LE = r'<='
+    DARROW = r'=>'
+    ASSIGN = r'<-'
 
-
-    ELSE = r'\b[eE][lL][sS][eE]\b'
-    IF = r'[iI][fF]\b'
-    FI = r'[fF][iI]\b'
-    THEN = r'[tT][hH][eE][nN]\b'
-    NOT = r'[nN][oO][tT]\b'
-    IN = r'[iI][nN]\b'
-    CASE = r'[cC][aA][sS][eE]\b'
-    ESAC = r'[eE][sS][aA][cC]\b'
-    CLASS = r'[cC][lL][aA][sS][sS]\b'
-    INHERITS = r'[iI][nN][hH][eE][rR][iI][tT][sS]\b'
-    ISVOID = r'[iI][sS][vV][oO][iI][dD]\b'
-    LET = r'[lL][eE][tT]\b'
-    LOOP = r'[lL][oO][oO][pP]\b'
-    NEW = r'[nN][eE][wW]\b'
-    OF = r'[oO][fF]\b'
-    POOL = r'[pP][oO][oO][lL]\b'
-    WHILE = r'[wW][hH][iI][lL][eE]\b'
-    LE = r'\<='
-    DARROW = r'\=>'
-    ASSIGN = r'\<-'
-
-    @_(r'\(\*')
-    def blockComment(self, t):
-        self.begin(CommentLexer)
+    CARACTERES_CONTROL = [bytes.fromhex(i+hex(j)[-1]).decode('ascii')
+                          for i in ['0', '1']
+                          for j in range(16)] + [bytes.fromhex(hex(127)[-2:]).decode("ascii")]
 
     @_(r'"')
-    def string(self, t):
-        self.begin(StringLexer)
+    def STR_CONST(self, t):
+        self.begin(Strings)
+        
 
-    @_(r'--.*')
-    def lineComment(self, t):
-        pass
-
-    @_(r'\*\)')
-    def unmatched_block_comment(self, t):
+    @_(r'[!#$%^&_>\?`\[\]\\\|\x00]')
+    def ERROR2(self, t):
         t.type = "ERROR"
+        if t.value == '\\':
+            t.value = '\\\\'
+        if t.value in self.CARACTERES_CONTROL:
+            t.value = '\\' + \
+                str(oct(int(t.value.encode("ascii").hex(), 16)
+                        ).replace('o', '0')[-3:])
+        t.value = '"'+t.value+'"'
+        return t
+
+    @_(r'\(\*\*\)')
+    def COMMENT0(self, t):
+        pass
+    @_(r'\(\*$')
+    def ERROR7(self, t):
+        t.type = "ERROR"
+        t.value = '"EOF in comment"'
+        return t
+
+    
+    @_(r'\(\*')
+    def COMMENT(self, t):
+        Comments.profundidad = 1
+        self.begin(Comments)
+
+    
+    @_(r'\*\)')
+    def ERRORCIERRE(self, t):
         t.value = '"Unmatched *)"'
+        t.type = 'ERROR'
         return t
+        
+    @_(r'--.*(\n|$)')
+    def LINECOMMENT(self, t):
+        self.lineno += t.value.count("\n")
 
-    @_(r't[rR][uU][eE]\b|f[aA][lL][sS][eE]')
-    def BOOL_CONST(self, t):
-        t.value = t.value.lower() == 'true'
-        return t
-
-    @_(r'[0-9]+')
+    @_(r'\d+')
     def INT_CONST(self, t):
+        t.value = t.value
+        return t
+
+    @_(r'\bt[rR][uU][eE]\b|\bf[aA][lL][sS][eE]\b')
+    def BOOL_CONST(self, t):
+        t.value = t.value[0] =='t'
         return t
 
     @_(r'[A-Z][a-zA-Z0-9_]*')
     def TYPEID(self, t):
-        t.value = str(t.value)
+        if t.value.lower() in self._key_words:
+            t.value = t.value.upper()
+            t.type = t.value
         return t
 
-    @_(r'[a-z][a-zA-Z0-9_]*')
+    @_(r'[a-z_][a-zA-Z0-9_]*')
     def OBJECTID(self, t):
+        if t.value.lower() in self._key_words:
+            t.value = t.value.upper()
+            t.type = t.value
         return t
 
+    @_(r'\t| |\v|\r|\f')
+    def spaces(self, t):
+        pass
 
-    @_(r'\n|\r')
-    def ignore_newline(self, t):
+    @_(r'\n+')
+    def newline(self, t):
         self.lineno += t.value.count('\n')
 
-    @_(r'\d+')
-    def NUMBER(self, t):
-        t.value = int(t.value)
-        return t
-
-    @_(r'_|!|#|\$|\%|\^|\&|\>|\?|`|\[|\]|\|')
-    def ERROR(self, t):
-        t.type = 'ERROR'
-        t.value = '"' + t.value + '"'
-        return t
-
-    @_(r'\\')
-    def backslash_error(self, t):
-        t.type = "ERROR"
-        t.value = "\"" + "\\\\" + "\""
-
-        return t
-
-    @_(r'\000')
-    def err_000(self, t):
-        t.type = 'ERROR'
-        t.value = '"\\000"'
-        return t
-
-    @_(r'\001')
-    def err_001(self, t):
-        t.type = 'ERROR'
-        t.value = '"\\001"'
-        return t
-
-    @_(r'\002')
-    def err_002(self, t):
-        t.type = 'ERROR'
-        t.value = '"\\002"'
-        return t
-
-    @_(r'\003')
-    def err_003(self, t):
-        t.type = 'ERROR'
-        t.value = '"\\003"'
-        return t
-
-    @_(r'\004')
-    def err_004(self, t):
-        t.type = 'ERROR'
-        t.value = '"\\004"'
-        return t
-
     def error(self, t):
-        print('Line %d: Bad character %r' % (self.lineno, t.value[0]))
+        print("Illegal character '%s'" % t.value[0])
         self.index += 1
 
     def salida(self, texto):
         list_strings = []
+        lexer = CoolLexer()
         for token in lexer.tokenize(texto):
             result = f'#{token.lineno} {token.type} '
             if token.type == 'OBJECTID':
@@ -361,9 +288,19 @@ class CoolLexer(Lexer):
                 result = f'#{token.lineno} {token.type} {token.value}'
             else:
                 result = f'#{token.lineno} {token.type}'
+
             list_strings.append(result)
         return list_strings
 
+    def tests(self):
+        for fich in TESTS:
+            f = open(os.path.join(DIR, fich), 'r')
+            g = open(os.path.join(DIR, fich + '.out'), 'r')
+            resultado = g.read()
+            entrada = f.read()
+            texto = '\n'.join(self.salida(entrada))
+            texto = f'#name "{fich}"\n' + texto
+            f.close(), g.close()
+            if texto.strip().split() != resultado.strip().split():
+                print(f"Revisa el fichero {fich}")
 
-lexer = CoolLexer()
-lexer.salida('Else')

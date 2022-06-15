@@ -7,7 +7,7 @@ import traceback
 init()
 
 
-DIRECTORIO = os.path.expanduser(r'D:\Clase\LP\Lenguajes-de-Programacion-master')
+DIRECTORIO = os.path.expanduser(r'D:\Clase\LP\Lenguajes-de-Programacion')
 sys.path.append(DIRECTORIO)
 
 from Lexer import *

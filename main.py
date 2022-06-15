@@ -1,3 +1,5 @@
+__author__ = "Alvaro Lopez, Jairo Gonzalez, Jorge Piris"
+
 import os
 import re
 import sys
@@ -24,7 +26,7 @@ TESTS = [fich for fich in FICHEROS
          if os.path.isfile(os.path.join(DIR, fich)) and
          re.search(r"^[a-zA-Z].*\.(cool|test|cl)$",fich)]
 TESTS.sort()
-TESTS = TESTS
+TESTS = ['overridingmethod.test']
 
 if True:
     for fich in TESTS:

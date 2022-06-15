@@ -1,4 +1,5 @@
 # coding: utf-8
+__author__ = "Alvaro Lopez, Jairo Gonzalez, Jorge Piris"
 from dataclasses import dataclass, field
 from typing import List
 
